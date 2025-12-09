@@ -100,53 +100,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GetBuilder<RideController>(builder: (rideController) {
-        return GetBuilder<ProfileController>(builder: (profileController) {
-          return GetBuilder<LocationController>(builder: (locationController) {
-            return Stack(children: [
-              Container(
-                decoration: BoxDecoration(color: Theme.of(context).primaryColorDark),
-                alignment: Alignment.bottomCenter,
-                child: Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Stack(alignment: AlignmentDirectional.bottomCenter, children: [
-                    Container(
-                      transform:
-                          Matrix4.translationValues(0, 320 - (320 * double.tryParse(_animation.value.toString())!), 0),
-                      child: Column(children: [
-                        Opacity(
-                          opacity: _animation.value,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: 120 - ((120 * double.tryParse(_animation.value.toString())!)),
-                            ),
-                            child: Image.asset(Images.splashLogo, width: 160),
-                          ),
-                        ),
-                        const SizedBox(height: 50),
-                        Image.asset(
-                          Images.splashBackgroundOne,
-                          width: Get.width,
-                          height: Get.height / 2,
-                          fit: BoxFit.cover,
-                        ),
-                      ]),
-                    ),
-                    Container(
-                      transform: Matrix4.translationValues(0, 20, 0),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: (70 * double.tryParse(_animation.value.toString())!),
-                        ),
-                        child: Image.asset(Images.splashBackgroundTwo, width: Get.size.width),
-                      ),
-                    )
-                  ]),
-                ]),
-              ),
-            ]);
-          });
-        });
-      }),
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Image.asset(
+          Images.splashScreenDir,
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 }

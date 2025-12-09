@@ -74,7 +74,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: Dimensions.paddingSizeSignUp),
-                            Center(child: Image.asset(Images.logoWithName, height: 60)),
+                            Center(child: Image.asset(Images.splashScreenDir, height: 100)),
                             const SizedBox(height: Dimensions.paddingSizeSignUp),
                             Text(
                               'login'.tr,

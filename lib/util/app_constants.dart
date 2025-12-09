@@ -2,9 +2,9 @@ import 'package:dir_delivery_driver/localization/language_model.dart';
 import 'package:dir_delivery_driver/util/images.dart';
 
 class AppConstants {
-  static const String appName = 'DirDeliveryDriver';
-  static const String baseUrl = 'YOUR_BASE_URL_HERE';
-  static const String polylineMapKey = 'YOUR_MAP_KEY_HERE';
+  static const String appName = 'Dir Delivery Driver';
+  static const String baseUrl = 'https://direthiopia.com/Delivery';
+  static const String polylineMapKey = 'AIzaSyClLHrpGpeW5b1Qh-H-SlT36FKyp32EyOk';
   static const double appVersion = 2.8;
 
   /// Flutter SDK 3.38.0

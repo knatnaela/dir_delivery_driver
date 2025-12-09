@@ -1,6 +1,7 @@
 class Images {
   static const String logo = 'assets/image/logo.png';
   static const String splashLogo = 'assets/image/splash_logo.png';
+  static const String splashScreenDir = 'assets/image/splash_screen_dir.jpeg';
   static const String signUpScreenLogo = 'assets/image/sign_up_logo.png';
   static const String forgotPasswordLogo = 'assets/image/forgot_password.png';
   static const String saudi = 'assets/image/saudi.png';
@@ -234,6 +235,4 @@ class Images {
   static const String verificationGraphics = 'assets/svg/verification_graphics.svg';
   static const String forgetPasswordGraphics = 'assets/svg/forget_password_graphics.svg';
   static const String helpAndSupportGraphics = 'assets/svg/help_and_support_graphics.svg';
-
-
 }
