@@ -26,7 +26,7 @@ class SignUpScreen extends StatelessWidget {
               Expanded(
                 child: SingleChildScrollView(
                     child: Column(children: [
-                  SvgPicture.asset(Images.logoWithNameSvg, height: 40),
+                  Image.asset(Images.splashScreenDir, height: 40),
                   const SizedBox(height: Dimensions.paddingSizeSignUp),
                   FutureBuilder<String>(
                       future: loadSvgAndChangeColors(Images.signUpScreenLogoSvg, Theme.of(context).primaryColor),
