@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dir_delivery_driver/Theme/theme_controller.dart';
+import 'package:dir_delivery_driver/theme/theme_controller.dart';
 import 'package:dir_delivery_driver/util/dimensions.dart';
 
 class ThemeChangeWidget extends StatelessWidget {

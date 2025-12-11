@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:dir_delivery_driver/common_widgets/custom_asset_image_widget.dart';
 import 'package:dir_delivery_driver/features/setting/widgets/language_select_bottomsheet.dart';
 import 'package:dir_delivery_driver/localization/localization_controller.dart';
-import 'package:dir_delivery_driver/Theme/theme_controller.dart';
+import 'package:dir_delivery_driver/theme/theme_controller.dart';
 import 'package:dir_delivery_driver/util/app_constants.dart';
 import 'package:dir_delivery_driver/util/dimensions.dart';
 import 'package:dir_delivery_driver/util/images.dart';

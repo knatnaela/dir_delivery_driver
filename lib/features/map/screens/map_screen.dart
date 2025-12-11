@@ -12,7 +12,7 @@ import 'package:dir_delivery_driver/features/safety_setup/controllers/safety_ale
 import 'package:dir_delivery_driver/features/safety_setup/widgets/safety_alert_bottomsheet_widget.dart';
 import 'package:dir_delivery_driver/features/splash/controllers/splash_controller.dart';
 import 'package:dir_delivery_driver/features/trip/screens/payment_received_screen.dart';
-import 'package:dir_delivery_driver/Theme/theme_controller.dart';
+import 'package:dir_delivery_driver/theme/theme_controller.dart';
 import 'package:dir_delivery_driver/util/app_constants.dart';
 import 'package:dir_delivery_driver/util/dimensions.dart';
 import 'package:dir_delivery_driver/util/images.dart';

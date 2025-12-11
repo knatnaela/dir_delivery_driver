@@ -10,7 +10,7 @@ import 'package:dir_delivery_driver/features/location/controllers/location_contr
 import 'package:dir_delivery_driver/features/map/controllers/map_controller.dart';
 import 'package:dir_delivery_driver/features/map/widgets/custom_icon_card_widget.dart';
 import 'package:dir_delivery_driver/features/out_of_zone/controllers/out_of_zone_controller.dart';
-import 'package:dir_delivery_driver/Theme/theme_controller.dart';
+import 'package:dir_delivery_driver/theme/theme_controller.dart';
 import 'package:dir_delivery_driver/util/app_constants.dart';
 import 'package:dir_delivery_driver/util/images.dart';
 
