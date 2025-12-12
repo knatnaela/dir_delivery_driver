@@ -70,7 +70,7 @@ class NotificationHelper {
       onDidReceiveBackgroundNotificationResponse: myBackgroundMessageReceiver,
     );
 
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       AndroidInitializationSettings androidInitialize = const AndroidInitializationSettings('notification_icon');
       var iOSInitialize = const DarwinInitializationSettings();
       var initializationsSettings = InitializationSettings(android: androidInitialize, iOS: iOSInitialize);
@@ -118,6 +118,19 @@ class NotificationHelper {
             });
           } else if (message.data['action'] == "customer_canceled_trip" ||
               message.data['action'] == "another_driver_assigned") {
+            // Close overlay if showing (app might be in background with overlay visible)
+            if (GetPlatform.isAndroid) {
+              try {
+                await OverlayHelper.hideOverlay();
+                if (kDebugMode) {
+                  print('NotificationHelper: Closing overlay due to trip cancellation');
+                }
+              } catch (e) {
+                if (kDebugMode) {
+                  print('NotificationHelper: Error closing overlay on cancel: $e');
+                }
+              }
+            }
             _whenCustomerCancelTrip(message);
           } else if (checkContainsAction(message.data['action'])) {
             Get.find<ProfileController>().getProfileInfo().then((value) {
@@ -157,6 +170,19 @@ class NotificationHelper {
             Get.find<RideController>().getRideDetails(message.data['ride_request_id']);
             Get.bottomSheet(ReceiptConfirmationBottomsheet());
           } else if (message.data['action'] == 'parcel_canceled' || message.data['action'] == 'trip_canceled') {
+            // Close overlay if showing (app might be in background with overlay visible)
+            if (GetPlatform.isAndroid) {
+              try {
+                OverlayHelper.hideOverlay();
+                if (kDebugMode) {
+                  print('NotificationHelper: Closing overlay due to trip/parcel cancellation');
+                }
+              } catch (e) {
+                if (kDebugMode) {
+                  print('NotificationHelper: Error closing overlay on cancel: $e');
+                }
+              }
+            }
             Get.offAll(const DashboardScreen());
           } else if (message.data['action'] == 'referral_reward_received') {
             Get.find<ReferAndEarnController>().getEarningHistoryList(1);
@@ -210,6 +236,19 @@ class NotificationHelper {
             Get.find<RideController>().getRideDetails(message.data['ride_request_id']);
             Get.bottomSheet(ReceiptConfirmationBottomsheet());
           } else if (message.data['action'] == 'parcel_canceled' || message.data['action'] == 'trip_canceled') {
+            // Close overlay if showing (app might be in background with overlay visible)
+            if (GetPlatform.isAndroid) {
+              try {
+                OverlayHelper.hideOverlay();
+                if (kDebugMode) {
+                  print('NotificationHelper: Closing overlay due to trip/parcel cancellation');
+                }
+              } catch (e) {
+                if (kDebugMode) {
+                  print('NotificationHelper: Error closing overlay on cancel: $e');
+                }
+              }
+            }
             Get.offAll(const DashboardScreen());
           } else if (message.data['action'] == 'referral_reward_received') {
             Get.find<ReferAndEarnController>().getEarningHistoryList(1);
@@ -222,8 +261,12 @@ class NotificationHelper {
         }
 
         ///checking which notification are not shown.
+        // Exclude cancel notifications (customer_canceled_trip, another_driver_assigned, trip_canceled, parcel_canceled)
+        // These should close overlay but not show notification
         if (!(message.data['action'] == "customer_canceled_trip" ||
             message.data['action'] == "another_driver_assigned" ||
+            message.data['action'] == "trip_canceled" ||
+            message.data['action'] == "parcel_canceled" ||
             message.data['type'] == 'maintenance_mode_on' ||
             message.data['type'] == 'maintenance_mode_off')) {
           if (message.data['status'] == '1') {
@@ -250,27 +293,68 @@ class NotificationHelper {
   static Future<void> showNotification(RemoteMessage message, FlutterLocalNotificationsPlugin fln, bool data) async {
     final String? action = message.data['action'];
 
+    if (kDebugMode) {
+      print('NotificationHelper: showNotification called - action: $action');
+    }
+
+    // Check if we're in background isolate (Get.find will fail in background)
+    bool isInBackground = false;
+    try {
+      // Try to access GetX - if this fails, we're in background isolate
+      Get.find<SplashController>();
+      isInBackground = false; // App is in foreground
+      if (kDebugMode) {
+        print('NotificationHelper: GetX available - app is in FOREGROUND');
+      }
+    } catch (e) {
+      isInBackground = true; // App is in background (GetX not available)
+      if (kDebugMode) {
+        print('NotificationHelper: GetX not available - app is in BACKGROUND');
+      }
+    }
+
+    // Handle cancel notifications (customer_canceled_trip, another_driver_assigned, trip_canceled, parcel_canceled)
+    // Close overlay if showing, but don't show notification (cancel notifications are excluded from showing)
+    if (GetPlatform.isAndroid &&
+        (action == "customer_canceled_trip" ||
+            action == "another_driver_assigned" ||
+            action == "trip_canceled" ||
+            action == "parcel_canceled")) {
+      // Close overlay if showing (works in both foreground and background)
+      if (kDebugMode) {
+        print('NotificationHelper: Cancel notification received - closing overlay (no notification shown)');
+      }
+      try {
+        await OverlayHelper.hideOverlay();
+        if (kDebugMode) {
+          print('NotificationHelper: Overlay closed successfully');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('NotificationHelper: Error closing overlay: $e');
+        }
+      }
+      // Don't show notification - just close overlay
+      return;
+    }
+
     // For new ride/parcel requests, only trigger overlay if app is in background
     // When app is in foreground, the in-app UI will be shown via _whenNewRequestFound
     if (GetPlatform.isAndroid && (action == "new_ride_request" || action == "new_parcel_request")) {
-      // Check if we're in background isolate (Get.find will fail in background)
-      bool isInBackground = false;
-      try {
-        // Try to access GetX - if this fails, we're in background isolate
-        Get.find<SplashController>();
-        isInBackground = false; // App is in foreground
-      } catch (e) {
-        isInBackground = true; // App is in background (GetX not available)
+      if (kDebugMode) {
+        print('NotificationHelper: New ride/parcel request detected - isInBackground: $isInBackground');
       }
-
       if (isInBackground) {
         // Only show overlay when app is in background
+        if (kDebugMode) {
+          print('NotificationHelper: App is in BACKGROUND - will show overlay');
+        }
         await _showTripNotificationWithOverlay(message, fln);
         return;
       } else {
         // App is in foreground - just show notification, in-app UI will handle it
         if (kDebugMode) {
-          print('NotificationHelper: App is in foreground, skipping overlay - in-app UI will show');
+          print('NotificationHelper: App is in FOREGROUND, skipping overlay - in-app UI will show');
         }
         // Show regular notification
         String title = message.data['title'];

@@ -139,13 +139,25 @@ class OverlayHelper {
   static Future<void> hideOverlay() async {
     if (!Platform.isAndroid) return;
     try {
-      await SystemAlertWindow.closeSystemWindow();
+      // Use prefMode: OVERLAY to ensure it closes correctly
+      await SystemAlertWindow.closeSystemWindow(prefMode: SystemWindowPrefMode.OVERLAY);
       if (kDebugMode) {
-        debugPrint('OverlayHelper: Overlay closed');
+        debugPrint('OverlayHelper: Overlay closed successfully');
       }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('OverlayHelper: Failed to close overlay: $e');
+      }
+      // Try fallback without prefMode
+      try {
+        await SystemAlertWindow.closeSystemWindow();
+        if (kDebugMode) {
+          debugPrint('OverlayHelper: Overlay closed with fallback method');
+        }
+      } catch (e2) {
+        if (kDebugMode) {
+          debugPrint('OverlayHelper: Fallback close also failed: $e2');
+        }
       }
     }
   }
