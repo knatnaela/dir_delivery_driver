@@ -26,6 +26,8 @@ import 'package:dir_delivery_driver/features/profile/domain/models/vehicle_body.
 import 'package:dir_delivery_driver/features/ride/controllers/ride_controller.dart';
 import 'package:dir_delivery_driver/common_widgets/config.dart';
 import 'package:dir_delivery_driver/common_widgets/confirmation_dialog_widget.dart';
+import 'package:dir_delivery_driver/helper/overlay_helper.dart';
+import 'package:flutter/foundation.dart' hide Category;
 
 class ProfileController extends GetxController implements GetxService {
   final ProfileServiceInterface profileServiceInterface;
@@ -188,6 +190,8 @@ class ProfileController extends GetxController implements GetxService {
     if (response!.statusCode == 200) {
       if (isOnline == "0") {
         isOnline = "1";
+        // Check overlay permission when going online
+        _checkOverlayPermissionWhenGoingOnline();
       } else if (isOnline == "1") {
         isOnline = "0";
       }
@@ -199,6 +203,40 @@ class ProfileController extends GetxController implements GetxService {
     isLoading = false;
     update();
     return response;
+  }
+
+  Future<void> _checkOverlayPermissionWhenGoingOnline() async {
+    if (!GetPlatform.isAndroid) return;
+    
+    try {
+      final bool hasPermission = await OverlayHelper.hasOverlayPermission();
+      if (!hasPermission) {
+        // Wait a bit for the UI to settle
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (Get.isDialogOpen == false) {
+          Get.dialog(
+            ConfirmationDialogWidget(
+              icon: Images.logo,
+              title: 'Overlay Permission Required',
+              description: 'To show incoming trip requests as a floating overlay when you\'re using other apps, please enable "Display over other apps" permission.',
+              fromOpenLocation: true,
+              onYesPressed: () async {
+                Get.back();
+                await OverlayHelper.requestOverlayPermission();
+              },
+              onNoPressed: () {
+                Get.back();
+              },
+            ),
+            barrierDismissible: false,
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to check overlay permission: $e');
+      }
+    }
   }
 
   List<Brand> brandList = [];

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/incomingTripOverlayRoot"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#FF00A08D"
+    android:elevation="16dp"
+    android:minWidth="200dp"
+    android:minHeight="100dp">
+
+    <TextView
+        android:id="@+id/tripTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="New trip request"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:layout_gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <Button
+        android:id="@+id/openTripButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Open"
+        android:textAllCaps="false"
+        android:backgroundTint="@android:color/white"
+        android:textColor="#FF00A08D"
+        android:textStyle="bold" />
+
+</LinearLayout>
+

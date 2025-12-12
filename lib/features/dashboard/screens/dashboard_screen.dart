@@ -13,6 +13,9 @@ import 'package:dir_delivery_driver/features/profile/controllers/profile_control
 import 'package:dir_delivery_driver/features/ride/controllers/ride_controller.dart';
 import 'package:dir_delivery_driver/features/trip/screens/trip_screen.dart';
 import 'package:dir_delivery_driver/features/wallet/screens/wallet_screen.dart';
+import 'package:dir_delivery_driver/helper/overlay_helper.dart';
+import 'package:dir_delivery_driver/common_widgets/confirmation_dialog_widget.dart';
+import 'package:flutter/foundation.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,6 +25,57 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final PageStorageBucket bucket = PageStorageBucket();
+  bool _hasCheckedOverlayPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOverlayPermission();
+  }
+
+  Future<void> _checkOverlayPermission() async {
+    if (_hasCheckedOverlayPermission) return;
+    _hasCheckedOverlayPermission = true;
+
+    // Wait a bit for the UI to settle
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+
+    final bool hasPermission = await OverlayHelper.hasOverlayPermission();
+    if (!hasPermission && mounted) {
+      _showOverlayPermissionDialog();
+    }
+  }
+
+  void _showOverlayPermissionDialog() {
+    Get.dialog(
+      ConfirmationDialogWidget(
+        icon: Images.splashScreenDir,
+        title: 'Overlay Permission Required',
+        description:
+            'To show incoming trip requests as a floating overlay when you\'re using other apps, please enable "Display over other apps" permission.',
+        fromOpenLocation: true,
+        onYesPressed: () async {
+          Get.back();
+          await OverlayHelper.requestOverlayPermission();
+          // Re-check after user returns from settings
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) {
+            final bool hasPermission = await OverlayHelper.hasOverlayPermission();
+            if (!hasPermission && mounted) {
+              // Show again if still not granted
+              _hasCheckedOverlayPermission = false;
+            }
+          }
+        },
+        onNoPressed: () {
+          Get.back();
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

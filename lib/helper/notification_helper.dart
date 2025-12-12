@@ -38,6 +38,9 @@ import 'package:dir_delivery_driver/features/ride/controllers/ride_controller.da
 import 'package:dir_delivery_driver/features/splash/controllers/splash_controller.dart';
 import 'package:dir_delivery_driver/features/trip/screens/payment_received_screen.dart';
 import 'package:dir_delivery_driver/features/trip/screens/review_this_customer_screen.dart';
+import 'package:dir_delivery_driver/helper/overlay_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class NotificationHelper {
   static Future<void> initialize(FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) async {
@@ -245,6 +248,48 @@ class NotificationHelper {
   }
 
   static Future<void> showNotification(RemoteMessage message, FlutterLocalNotificationsPlugin fln, bool data) async {
+    final String? action = message.data['action'];
+
+    // For new ride/parcel requests, only trigger overlay if app is in background
+    // When app is in foreground, the in-app UI will be shown via _whenNewRequestFound
+    if (GetPlatform.isAndroid && (action == "new_ride_request" || action == "new_parcel_request")) {
+      // Check if we're in background isolate (Get.find will fail in background)
+      bool isInBackground = false;
+      try {
+        // Try to access GetX - if this fails, we're in background isolate
+        Get.find<SplashController>();
+        isInBackground = false; // App is in foreground
+      } catch (e) {
+        isInBackground = true; // App is in background (GetX not available)
+      }
+
+      if (isInBackground) {
+        // Only show overlay when app is in background
+        await _showTripNotificationWithOverlay(message, fln);
+        return;
+      } else {
+        // App is in foreground - just show notification, in-app UI will handle it
+        if (kDebugMode) {
+          print('NotificationHelper: App is in foreground, skipping overlay - in-app UI will show');
+        }
+        // Show regular notification
+        String title = message.data['title'];
+        String body = message.data['body'];
+        final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+          'hexaride',
+          'hexaride',
+          priority: Priority.max,
+          importance: Importance.max,
+          playSound: true,
+          sound: const RawResourceAndroidNotificationSound('notification'),
+        );
+        final NotificationDetails platformChannelSpecifics =
+            NotificationDetails(android: androidPlatformChannelSpecifics);
+        await fln.show(0, title, body, platformChannelSpecifics, payload: jsonEncode(message.data));
+        return;
+      }
+    }
+
     String title = message.data['title'];
     String body = message.data['body'];
     String? orderID = message.data['order_id'];
@@ -259,6 +304,92 @@ class NotificationHelper {
     } catch (e) {
       await showBigPictureNotificationHiddenLargeIcon(title, body, orderID, null, fln);
       customPrint('Failed to show notification: ${e.toString()}');
+    }
+  }
+
+  /// Show trip notification and trigger overlay
+  static Future<void> _showTripNotificationWithOverlay(
+      RemoteMessage message, FlutterLocalNotificationsPlugin fln) async {
+    final Map<String, dynamic> notificationData = message.data;
+    final String title = notificationData['title'] ?? 'New trip request';
+    final String body = notificationData['body'] ?? '';
+    final String? rideRequestId = notificationData['ride_request_id'];
+
+    // Show notification first (don't wait for trip details)
+    final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'hexaride',
+      'hexaride',
+      priority: Priority.max,
+      importance: Importance.max,
+      playSound: true,
+      sound: const RawResourceAndroidNotificationSound('notification'),
+    );
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    await fln.show(0, title, body, platformChannelSpecifics, payload: jsonEncode(notificationData));
+
+    // Trigger overlay with enriched data
+    if (GetPlatform.isAndroid) {
+      try {
+        // Try to fetch trip details to enrich the overlay data
+        Map<String, dynamic> enrichedData = Map<String, dynamic>.from(notificationData);
+
+        if (rideRequestId != null && rideRequestId.isNotEmpty) {
+          try {
+            // Try to fetch trip details - works in both foreground and background
+            if (kDebugMode) {
+              print('NotificationHelper: Fetching trip details for ride_request_id: $rideRequestId');
+            }
+            final tripDetails = await _fetchTripDetailsForOverlay(rideRequestId);
+            if (tripDetails != null) {
+              // Enrich notification data with trip details
+              final customer = tripDetails['customer'];
+              if (customer != null) {
+                final firstName = customer['first_name'] ?? '';
+                final lastName = customer['last_name'] ?? '';
+                enrichedData['user_name'] = '$firstName $lastName'.trim();
+                enrichedData['customer_profile_image'] = customer['profile_image'] ?? '';
+              }
+              enrichedData['estimated_fare'] = tripDetails['estimated_fare']?.toString() ?? '';
+              enrichedData['estimated_time'] = tripDetails['estimated_time']?.toString() ?? '';
+              enrichedData['estimated_distance'] = tripDetails['estimated_distance']?.toString() ?? '';
+              enrichedData['pickup_address'] = tripDetails['pickup_address'] ?? '';
+              enrichedData['destination_address'] = tripDetails['destination_address'] ?? '';
+              enrichedData['customer_avg_rating'] = tripDetails['customer_avg_rating']?.toString() ?? '';
+
+              if (kDebugMode) {
+                print('NotificationHelper: Enriched overlay data with trip details');
+                print(
+                    'NotificationHelper: Enriched data - user_name: ${enrichedData['user_name']}, estimated_fare: ${enrichedData['estimated_fare']}, pickup_address: ${enrichedData['pickup_address']}');
+              }
+            } else {
+              if (kDebugMode) {
+                print('NotificationHelper: Trip details fetch returned null - using basic notification data');
+              }
+            }
+          } catch (e, stackTrace) {
+            if (kDebugMode) {
+              print('NotificationHelper: Failed to fetch trip details for overlay: $e');
+              print('NotificationHelper: Stack trace: $stackTrace');
+            }
+            // Continue with basic notification data if fetch fails
+          }
+        } else {
+          if (kDebugMode) {
+            print('NotificationHelper: No ride_request_id found - using basic notification data');
+          }
+        }
+
+        if (kDebugMode) {
+          print(
+              'NotificationHelper: Sending data to overlay - user_name: ${enrichedData['user_name']}, estimated_fare: ${enrichedData['estimated_fare']}');
+        }
+        await OverlayHelper.showIncomingTripOverlay(enrichedData);
+      } catch (e) {
+        if (kDebugMode) {
+          print('NotificationHelper: Failed to show overlay (might be background): $e');
+        }
+        // The overlay helper will store it for showing when app comes to foreground
+      }
     }
   }
 
@@ -511,16 +642,139 @@ class NotificationHelper {
       await Get.to(() => page);
     }
   }
+
+  /// Fetch trip details for overlay - works in both foreground and background isolates
+  static Future<Map<String, dynamic>?> _fetchTripDetailsForOverlay(String rideRequestId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.token) ?? '';
+      final languageCode = prefs.getString(AppConstants.languageCode) ?? 'en';
+      final zoneId = prefs.getString(AppConstants.zoneId) ?? '';
+
+      if (token.isEmpty) {
+        if (kDebugMode) {
+          print('NotificationHelper: No token available for API call');
+        }
+        return null;
+      }
+
+      final headers = {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json',
+        AppConstants.localization: languageCode,
+        'zoneId': zoneId,
+        'Authorization': 'Bearer $token',
+      };
+
+      final url = '${AppConstants.baseUrl}${AppConstants.tripDetails}$rideRequestId?type=overview';
+
+      if (kDebugMode) {
+        print('NotificationHelper: Fetching trip details from: $url');
+      }
+
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['data'] != null) {
+          if (kDebugMode) {
+            print('NotificationHelper: Successfully fetched trip details');
+          }
+          return responseData['data'] as Map<String, dynamic>;
+        }
+      } else {
+        if (kDebugMode) {
+          print('NotificationHelper: Failed to fetch trip details - status: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('NotificationHelper: Error fetching trip details: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Open app and show trip details when overlay is tapped/opened
+  /// Similar to _whenNewRequestFound but can be called with just ride_request_id
+  /// This method closes the overlay and navigates to MapScreen with trip details
+  static Future<void> openAppAndShowTrip(String rideRequestId) async {
+    try {
+      if (kDebugMode) {
+        print('NotificationHelper: Opening app and showing trip: $rideRequestId');
+      }
+
+      // Close overlay first
+      if (GetPlatform.isAndroid) {
+        try {
+          await OverlayHelper.hideOverlay();
+        } catch (e) {
+          if (kDebugMode) {
+            print('NotificationHelper: Error closing overlay: $e');
+          }
+        }
+      }
+
+      // Check if GetX is available (app is running)
+      try {
+        Get.find<RideController>();
+      } catch (e) {
+        if (kDebugMode) {
+          print('NotificationHelper: App not running, cannot show trip');
+        }
+        return;
+      }
+
+      // Same flow as _whenNewRequestFound
+      Get.find<RideController>().ongoingTripList().then((value) {
+        if ((Get.find<RideController>().ongoingTrip ?? []).isEmpty) {
+          Get.find<RideController>().getPendingRideRequestList(1);
+          AudioPlayer audio = AudioPlayer();
+          audio.play(AssetSource('notification.wav'));
+          Get.find<RideController>().setRideId(rideRequestId);
+          Get.find<RideController>().getRideDetailBeforeAccept(rideRequestId).then((value) {
+            if (value.statusCode == 200) {
+              Get.find<RiderMapController>().getPickupToDestinationPolyline();
+              Get.find<RiderMapController>().setRideCurrentState(RideState.pending);
+              Get.find<RideController>().updateRoute(false, notify: true);
+              Get.to(() => const MapScreen());
+            }
+          });
+        } else {
+          if (Get.currentRoute == '/MapScreen') {
+            Get.find<RideController>().getPendingRideRequestList(1, limit: 100);
+          } else {
+            Get.to(() => RideRequestScreen());
+          }
+        }
+      });
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('NotificationHelper: Error opening app and showing trip: $e');
+        print('NotificationHelper: Stack trace: $stackTrace');
+      }
+    }
+  }
 }
 
+@pragma('vm:entry-point')
 Future<dynamic> myBackgroundMessageHandler(RemoteMessage remoteMessage) async {
   customPrint('onBackground: ${remoteMessage.data}');
-  // var androidInitialize = new AndroidInitializationSettings('notification_icon');
-  // var iOSInitialize = new IOSInitializationSettings();
-  // var initializationsSettings = new InitializationSettings(android: androidInitialize, iOS: iOSInitialize);
-  // FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  // flutterLocalNotificationsPlugin.initialize(initializationsSettings);
-  // NotificationHelper.showNotification(message, flutterLocalNotificationsPlugin, true);
+
+  // Initialize notifications for background
+  AndroidInitializationSettings androidInitialize = const AndroidInitializationSettings('notification_icon');
+  var iOSInitialize = const DarwinInitializationSettings();
+  var initializationsSettings = InitializationSettings(android: androidInitialize, iOS: iOSInitialize);
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin.initialize(initializationsSettings);
+
+  // Show notification (this will also trigger overlay via broadcast)
+  await NotificationHelper.showNotification(remoteMessage, flutterLocalNotificationsPlugin, true);
 }
 
 Future<dynamic> myBackgroundMessageReceiver(NotificationResponse response) async {
